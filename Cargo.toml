@@ -1,0 +1,90 @@
+[package]
+name = "pathfinding-playground"
+version = "0.1.0"
+authors = ["Lacosst0 lacosst0@outlook.com"]
+description = "Visualizer for pathfinding algorithms"
+readme = "README.md"
+license = "MIT"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.17.3", default-features = false, features = [
+    # dev
+    "debug",
+    "bevy_dev_tools",
+    "file_watcher",
+    "dynamic_linking",
+    # audio
+    "bevy_audio",
+    "vorbis",
+    # scene
+    "bevy_scene",
+    # picking
+    "bevy_picking",
+    "bevy_sprite_picking_backend",
+    "bevy_ui_picking_backend",
+    "bevy_mesh_picking_backend",
+    # default app
+    "async_executor",
+    "bevy_asset",
+    "bevy_input_focus",
+    "bevy_log",
+    "bevy_state",
+    "bevy_window",
+    "custom_cursor",
+    "reflect_auto_register",
+    # default platform
+    "std",
+    "bevy_winit",
+    "default_font",
+    "multi_threaded",
+    "sysinfo_plugin",
+    # 2d api
+    "bevy_animation",
+    "bevy_camera",
+    "bevy_color",
+    "bevy_gizmos",
+    "bevy_image",
+    "bevy_text",
+    "png",
+    "bevy_sprite",
+    # 2d renderer
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_post_process",
+    "bevy_sprite_render",
+    # ui
+    "bevy_ui",
+    "bevy_ui_render",
+    "experimental_bevy_ui_widgets",
+
+] }
+log = { version = "*", features = [
+    "max_level_debug",
+    "release_max_level_warn",
+] }
+rfd = "0.15.3"
+
+wasmtime = "37.0.1"
+wasmtime-wasi = "37.0.1"
+
+# Adding icon was so hard bruh
+winit = "*"
+image = "*"
+# wit-bindgen-cli for making bindings files
+
+[profile.dev]
+opt-level = 0
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+
+[lints.clippy]
+# We are using a lot of ECS Query magic for UI
+# IMO it feels cool, but overwhelming
+# Bring more javascript to games - Valve
+type_complexity = "allow"

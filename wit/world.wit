@@ -1,0 +1,17 @@
+package pathfinding:pathfinding;
+
+world pathfinding {
+	import host: interface {
+	    type color = tuple<u8, u8, u8>;
+	    type pos = tuple<u32, u32>;
+
+		tile: func(pos: pos, color: color);
+		line: func(start: pos, end: pos, color: color);
+		arrow: func(start: pos, end: pos, color: color);
+		output: func(path: list<pos>) -> bool;
+	}
+
+	export guest: interface {
+		run: func(input: list<list<bool>>, start: tuple<u32, u32>, end: tuple<u32, u32>);
+	}
+}

@@ -1,0 +1,219 @@
+use std::{path::PathBuf, sync::Mutex};
+
+use bevy::{prelude::*, sprite_render::TilemapChunkTileData};
+use wasmtime::{
+    Config, Engine, Store,
+    component::{Component, HasSelf, Linker},
+};
+
+use crate::{
+    api::{Pathfinding, TimelineAction, WasmRunner, host},
+    goals::{Flag, Fox},
+    map::{MapPos, MapSize, TileType},
+    ui::SPRITE_SIZE,
+};
+
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, States)]
+pub enum WasmState {
+    Run,
+    Error(String),
+    #[default]
+    Idle,
+}
+
+#[derive(Resource)]
+pub struct WasmPathfinding {
+    module: Pathfinding,
+    store: Mutex<Store<WasmRunner>>,
+}
+impl WasmPathfinding {
+    pub fn load(file: &PathBuf) -> Result<WasmPathfinding, wasmtime::Error> {
+        let engine = Engine::new(Config::new().wasm_component_model(true))?;
+
+        let component = Component::from_file(&engine, file)?;
+        let mut linker = Linker::new(&engine);
+
+        wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
+
+        let data = WasmRunner::default();
+        let mut store = Store::new(component.engine(), data);
+        host::add_to_linker::<_, HasSelf<_>>(&mut linker, |data: &mut WasmRunner| data)?;
+        Ok(WasmPathfinding {
+            module: Pathfinding::instantiate(&mut store, &component, &linker)?,
+            store: Mutex::new(store),
+        })
+    }
+
+    pub fn run(
+        &mut self,
+        tiles: Vec<Vec<bool>>,
+        fox_pos: (u32, u32),
+        flag_pos: (u32, u32),
+    ) -> wasmtime::Result<()> {
+        return self.module.guest().call_run(
+            &mut (*self.store.lock().unwrap()),
+            &tiles,
+            fox_pos,
+            flag_pos,
+        );
+    }
+}
+
+fn wasm_clean(
+    mut commands: Commands,
+    tiles_map: Single<(Entity, &TilemapChunkTileData)>,
+    gizmos: Query<Entity, With<Gizmo>>,
+) {
+    commands.entity(tiles_map.0).insert(TilemapChunkTileData(
+        tiles_map
+            .1
+            .iter()
+            .map(|tile| {
+                let mut tile = tile.unwrap_or_default();
+                tile.color = Color::WHITE;
+                Some(tile)
+            })
+            .collect(),
+    ));
+
+    gizmos.iter().for_each(|g| commands.entity(g).despawn());
+}
+
+fn wasm_run(
+    size: Res<MapSize>,
+    mut wasm: ResMut<WasmPathfinding>,
+    tiles_map: Single<&mut TilemapChunkTileData>,
+    fox_pos: Single<&MapPos, With<Fox>>,
+    flag_pos: Single<&MapPos, With<Flag>>,
+    mut mut_state: ResMut<NextState<WasmState>>,
+) {
+    let chunks: Vec<Vec<_>> = tiles_map
+        .chunks(size.0.x as usize)
+        .map(|c| c.to_vec())
+        .collect();
+
+    let grid = chunks
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|tile| tile.unwrap().tileset_index == TileType::Floor.to_index())
+                .collect()
+        })
+        // INVERT Y AXIS
+        // X right Y up -> X right Y down
+        // (Math coordinates -> Programming (array) coordinates)
+        .rev()
+        .collect();
+
+    let fox_pos: UVec2 = (**fox_pos).into();
+    println!("Fox position: {fox_pos:?}");
+    let flag_pos: UVec2 = (**flag_pos).into();
+    println!("Flag position: {flag_pos:?}");
+
+    if let Err(err) = wasm.run(grid, fox_pos.into(), flag_pos.into()) {
+        error!("{}", err);
+        mut_state.set(WasmState::Error(err.to_string()));
+    }
+
+    mut_state.set(WasmState::Idle);
+}
+
+const HALF_SIZE: Vec2 = vec2(SPRITE_SIZE as f32 / 2.0, SPRITE_SIZE as f32 / 2.0);
+fn show_wasm_actions(
+    mut commands: Commands,
+    size: Res<MapSize>,
+    pathfinding: Res<WasmPathfinding>,
+    mut tiles_map: Single<&mut TilemapChunkTileData>,
+    mut gizmo_assets: ResMut<Assets<GizmoAsset>>,
+) {
+    pathfinding
+        .store
+        .lock()
+        .unwrap()
+        .data()
+        .timeline
+        .iter()
+        .for_each(|entry| match *entry {
+            TimelineAction::Line {
+                start,
+                end,
+                color: (r, g, b),
+            } => {
+                let mut gizmo = GizmoAsset::default();
+
+                let t_start: MapPos = start.into();
+                let t_end: MapPos = end.into();
+
+                let t_start: Vec2 = t_start.into();
+                let t_end: Vec2 = t_end.into();
+
+                gizmo.line_2d(
+                    t_start + HALF_SIZE,
+                    t_end + HALF_SIZE,
+                    Color::srgb_u8(r, g, b),
+                );
+
+                commands.spawn(Gizmo {
+                    handle: gizmo_assets.add(gizmo),
+                    line_config: GizmoLineConfig {
+                        width: 4.0,
+                        ..default()
+                    },
+                    ..default()
+                });
+            }
+            TimelineAction::Arrow {
+                start,
+                end,
+                color: (r, g, b),
+            } => {
+                let mut gizmo = GizmoAsset::default();
+
+                let t_start: MapPos = start.into();
+                let t_end: MapPos = end.into();
+
+                let t_start: Vec2 = t_start.into();
+                let t_end: Vec2 = t_end.into();
+
+                gizmo
+                    .arrow_2d(
+                        t_start + HALF_SIZE,
+                        t_end + HALF_SIZE,
+                        Color::srgb_u8(r, g, b),
+                    )
+                    .with_tip_length(SPRITE_SIZE as f32 / 2.0);
+
+                commands.spawn(Gizmo {
+                    handle: gizmo_assets.add(gizmo),
+                    line_config: GizmoLineConfig {
+                        width: 4.0,
+                        ..default()
+                    },
+                    ..default()
+                });
+            }
+            TimelineAction::Tile {
+                pos: UVec2 { x: pos_x, y: pos_y },
+                color,
+            } => {
+                let color = Color::srgb_u8(color.0, color.1, color.2);
+                let map_pos = MapPos { x: pos_x, y: pos_y };
+                let tile_index = map_pos.into_tile_index(&size);
+
+                let mut tile = tiles_map[tile_index].unwrap();
+                tile.color = color.lighter(0.01);
+
+                tiles_map[tile_index] = Some(tile);
+            }
+        });
+}
+
+pub struct WasmRunnerPlugin;
+impl Plugin for WasmRunnerPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_state::<WasmState>().add_systems(
+            OnEnter(WasmState::Run),
+            (wasm_clean, wasm_run, show_wasm_actions).chain(),
+        );
+    }
+}
