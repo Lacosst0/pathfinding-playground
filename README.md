@@ -1,6 +1,15 @@
 # Pathfinding Playground
 
+Visualizer for pathfinding algorithms
+
 ![image](https://imgur.com/F862GbP.png)
+
+# Technologies
+
+- [Rust](https://rust-lang.org/)
+- [Bevy 0.17.3](https://bevy.org/)
+- [Wasmtime (WebAssembly)](https://wasmtime.dev/)
+- [Wasm Component Model (WIT)](https://component-model.bytecodealliance.org/)
 
 # How to use
 
@@ -11,16 +20,16 @@
 5. Select algorithm
 
 # Controls
+### Mouse:
+* Left click - Place walls
+* Right click - Remove walls
+* Middle click - Move camera
+* Scroll wheel - Zoom
+* Left click drag on goals - move goals
 
-Left click - Place walls
-Right click - Remove walls
-Middle click - Move camera
-Scroll wheel - Zoom
-
-Goals: 
-Fox - start position
-Flag - end position
-Drag goals to move them
+### Goals:
+* Fox - start position
+* Flag - end position
 
 # TODO
 
