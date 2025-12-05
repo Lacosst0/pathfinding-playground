@@ -1,7 +1,7 @@
 # Pathfinding Playground
 
 ### Visualizer for pathfinding algorithms
-Visualizer for pathfinding algorithms powered by WASM. You can use ANY language (supported by WIT) to generate API binding, run your pathfinding algorithm and see how it works 
+Visualizer for pathfinding algorithms powered by WASM. You can use ANY language (supported by WIT) to generate API bindings, run your pathfinding algorithm and see how it works 
 
 ![image](https://imgur.com/F862GbP.png)
 
