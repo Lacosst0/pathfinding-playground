@@ -1,6 +1,6 @@
 [package]
 name = "pathfinding-playground"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Lacosst0 lacosst0@outlook.com"]
 description = "Visualizer for pathfinding algorithms"
 readme = "README.md"
@@ -63,10 +63,10 @@ log = { version = "*", features = [
     "max_level_debug",
     "release_max_level_warn",
 ] }
-rfd = "0.15.3"
+rfd = "0.16.0"
 
-wasmtime = "37.0.1"
-wasmtime-wasi = "37.0.1"
+wasmtime = "39.0.1"
+wasmtime-wasi = "39.0.1"
 
 # Adding icon was so hard bruh
 winit = "*"

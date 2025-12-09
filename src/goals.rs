@@ -1,8 +1,8 @@
-use bevy::{prelude::*, sprite::Anchor, sprite_render::TilemapChunkTileData, ui_widgets::observe};
+use bevy::{prelude::*, sprite::Anchor, ui_widgets::observe};
 
 use crate::{
     cursor::CursorState,
-    map::{MapPos, MapSize, TileType},
+    map::{Map, MapPos, MapSize, TileType},
     ui::SPRITE_SIZE,
 };
 
@@ -61,12 +61,10 @@ fn map_load(
 fn fix_goals_positions(
     mut commands: Commands,
     size: Res<MapSize>,
-    fox_pos: Single<(Entity, &MapPos), With<Fox>>,
-    flag_pos: Single<(Entity, &MapPos), With<Flag>>,
+    pos_q: Query<(Entity, &MapPos)>,
 ) {
-    for (entity, &pos) in [*fox_pos, *flag_pos] {
-        let (x, y) = size.0.into();
-        let new_pos = pos.clamp(x, y);
+    for (entity, &pos) in pos_q.iter() {
+        let new_pos = pos.clamp(&size);
 
         commands
             .entity(entity)
@@ -74,42 +72,11 @@ fn fix_goals_positions(
     }
 }
 
-fn fix_goals_collision(
-    mut commands: Commands,
-    fox: Single<(Entity, &MapPos), With<Fox>>,
-    size: Res<MapSize>,
-) {
-    let (x, y) = size.0.into();
-    let (entity, &pos) = *fox;
-    let mut new_pos = pos.clamp(x, y);
-
-    if pos.x == x - 1 {
-        new_pos.x -= 1;
-    } else {
-        new_pos.x += 1;
-    }
-    if pos.y == y - 1 {
-        new_pos.y -= 1;
-    } else {
-        new_pos.y += 1;
-    }
-
-    commands.entity(entity).insert(new_pos);
-}
-
-fn fix_goals_floor(
-    size: Res<MapSize>,
-    mut tiles_map: Single<&mut TilemapChunkTileData>,
-    fox_pos: Single<&MapPos, With<Fox>>,
-    flag_pos: Single<&MapPos, With<Flag>>,
-) {
-    for pos in [*fox_pos, *flag_pos] {
-        let tile_index = pos.into_tile_index(&size);
-
-        let mut tile = tiles_map[tile_index].unwrap();
-        tile.tileset_index = TileType::Floor.to_index();
-
-        tiles_map[tile_index] = Some(tile);
+fn fix_goals_floor(mut map: ResMut<Map>, pos_q: Query<&MapPos>) {
+    for pos in pos_q.iter() {
+        if map.get_tile(pos).tile_type == TileType::Wall {
+            map.get_tile_mut(pos).tile_type = TileType::Floor;
+        }
     }
 }
 
@@ -121,11 +88,6 @@ impl Plugin for GoalsHandlerPlugin {
             (
                 fix_goals_positions.run_if(|size: Res<MapSize>| size.is_changed()),
                 fix_goals_floor.run_if(in_state(CursorState::Idle)),
-                fix_goals_collision.run_if(
-                    |fox_pos: Single<&MapPos, With<Fox>>, flag_pos: Single<&MapPos, With<Flag>>| {
-                        *fox_pos == *flag_pos
-                    },
-                ),
             )
                 .chain(),
         );

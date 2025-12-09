@@ -5,7 +5,7 @@ use bevy::{
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     math::Vec2,
     prelude::*,
-    sprite_render::{TileData, TilemapChunkTileData},
+    sprite_render::TilemapChunkTileData,
     time::common_conditions::on_timer,
     ui_widgets::{
         Activate, Button, Slider, SliderRange, SliderThumb, SliderValue, UiWidgetsPlugins,
@@ -16,7 +16,7 @@ use rfd::FileDialog;
 
 use crate::{
     goals::Fox,
-    map::MapSize,
+    map::{Map, MapSize},
     wasm::{WasmPathfinding, WasmState},
 };
 
@@ -178,7 +178,7 @@ fn separator() -> impl Bundle {
         BackgroundColor(Color::srgb(0., 0., 0.)),
     )
 }
-fn ui_startup(mut commands: Commands) {
+fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
     commands.spawn((
         Node {
             display: Display::Flex,
@@ -214,17 +214,8 @@ fn ui_startup(mut commands: Commands) {
             (
                 button(text("Reset walls", 24.)),
                 observe(
-                    |_: On<Activate>,
-                     mut commands: Commands,
-                     chunk_entity: Single<Entity, With<TilemapChunkTileData>>,
-                     size: Res<MapSize>| {
-                        let tile_map: Vec<Option<TileData>> = (0..size.0.element_product())
-                            .map(|_| Some(TileData::default()))
-                            .collect();
-
-                        commands
-                            .entity(*chunk_entity)
-                            .insert(TilemapChunkTileData(tile_map));
+                    |_: On<Activate>, mut commands: Commands, size: Res<MapSize>| {
+                        commands.insert_resource(Map::new(&size));
                     }
                 )
             ),
@@ -293,7 +284,7 @@ fn ui_startup(mut commands: Commands) {
                 children![
                     text("X:", 24.),
                     (
-                        slider(2., 128., 10.),
+                        slider(2., 128., map_size.0.x as f32),
                         observe(
                             |value_change: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
                                 map_size.0.x = value_change.value as u32;
@@ -311,7 +302,7 @@ fn ui_startup(mut commands: Commands) {
                 children![
                     text("Y:", 24.),
                     (
-                        slider(2., 128., 10.),
+                        slider(2., 128., map_size.0.y as f32),
                         observe(
                             |value_change: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
                                 map_size.0.y = value_change.value as u32;

@@ -1,6 +1,6 @@
-use bevy::{input::mouse::MouseWheel, prelude::*, sprite_render::TilemapChunkTileData};
+use bevy::{input::mouse::MouseWheel, prelude::*};
 
-use crate::map::{MapPos, MapSize, TileType};
+use crate::map::{Map, MapPos, MapSize, TileType};
 
 #[derive(Resource, Default)]
 pub struct CursorPos(pub Vec2);
@@ -39,31 +39,36 @@ fn cursor_dragging(
     mut commands: Commands,
     state: Res<State<CursorState>>,
     cursor_pos: Res<CursorPos>,
+    map_pos_q: Query<(Entity, &MapPos)>,
     size: Res<MapSize>,
 ) {
-    if let CursorState::Dragging(entity) = *state.get() {
-        let map_pos: MapPos = Transform::from_translation(cursor_pos.0.extend(1.)).into();
+    if let CursorState::Dragging(event_entity) = *state.get() {
+        let event_map_pos: MapPos = Transform::from_translation(cursor_pos.0.extend(1.)).into();
 
-        commands
-            .entity(entity)
-            .insert(map_pos.clamp(size.0.x, size.0.y));
+        if !map_pos_q
+            .iter()
+            .any(|(entity, map_pos)| event_entity != entity && *map_pos == event_map_pos)
+        {
+            commands
+                .entity(event_entity)
+                .insert(event_map_pos.clamp(&size));
+        }
     }
 }
 
 fn cursor_placing(
     state: Res<State<CursorState>>,
     cursor_pos: Res<CursorPos>,
+    mut map: ResMut<Map>,
     size: Res<MapSize>,
-    mut tiles_map: Single<&mut TilemapChunkTileData>,
 ) {
     if let CursorState::Placing(tile_type) = *state.get() {
         let map_pos: MapPos = Transform::from_translation(cursor_pos.0.extend(0.)).into();
-        let tile_index = map_pos.into_tile_index(&size);
+        let pos = &map_pos.clamp(&size);
 
-        let mut tile = tiles_map[tile_index].unwrap();
-        tile.tileset_index = tile_type.to_index();
-
-        tiles_map[tile_index] = Some(tile);
+        if map.get_tile(pos).tile_type != tile_type {
+            map.get_tile_mut(pos).tile_type = tile_type;
+        }
     }
 }
 
@@ -91,7 +96,6 @@ impl Plugin for CursorHandlerPlugin {
             .add_systems(Update, set_cursor_pos)
             .add_systems(Update, cursor_dragging)
             .add_systems(Update, cursor_placing)
-            // middle actions
             .add_systems(Update, middle_zoom)
             .add_observer(middle_move)
             .add_observer(

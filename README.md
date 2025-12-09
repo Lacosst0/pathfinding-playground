@@ -1,7 +1,8 @@
 # Pathfinding Playground
 
 ### Visualizer for pathfinding algorithms
-Visualizer for pathfinding algorithms powered by WASM. You can use ANY language (supported by WIT) to generate API bindings, run your pathfinding algorithm and see how it works 
+
+Visualizer for pathfinding algorithms powered by WASM. You can use ANY language (supported by WIT) to generate API bindings, run your pathfinding algorithm and see how it works
 
 ![image](https://imgur.com/F862GbP.png)
 
@@ -21,20 +22,23 @@ Visualizer for pathfinding algorithms powered by WASM. You can use ANY language 
 5. Select algorithm
 
 # Controls
+
 ### Mouse:
-* Left click - Place walls
-* Right click - Remove walls
-* Middle click - Move camera
-* Scroll wheel - Zoom
-* Left click drag on goals - move goals
+
+- Left click - Place walls
+- Right click - Remove walls
+- Middle click - Move camera
+- Scroll wheel - Zoom
+- Left click drag on goals - move goals
 
 ### Goals:
-* Fox - start position
-* Flag - end position
+
+- Fox - start position
+- Flag - end position
 
 # TODO
 
-0. Decouple visual representation from actual data (for map)
+✅ Decouple visual representation from actual data (for map)
 1. Hot-reloading
 2. Pre-compiled binaries
 3. More examples
@@ -44,3 +48,4 @@ Visualizer for pathfinding algorithms powered by WASM. You can use ANY language 
 7. load_map in wit
 8. Animate fox
 9. Coins as more goals
+

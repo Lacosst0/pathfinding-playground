@@ -9,7 +9,7 @@ use wasmtime::{
 use crate::{
     api::{Pathfinding, TimelineAction, WasmRunner, host},
     goals::{Flag, Fox},
-    map::{MapPos, MapSize, TileType},
+    map::{Map, MapPos},
     ui::SPRITE_SIZE,
 };
 
@@ -64,10 +64,9 @@ fn wasm_clean(
     tiles_map: Single<(Entity, &TilemapChunkTileData)>,
     gizmos: Query<Entity, With<Gizmo>>,
 ) {
-    commands.entity(tiles_map.0).insert(TilemapChunkTileData(
-        tiles_map
-            .1
-            .iter()
+    let (entity, map) = *tiles_map;
+    commands.entity(entity).insert(TilemapChunkTileData(
+        map.iter()
             .map(|tile| {
                 let mut tile = tile.unwrap_or_default();
                 tile.color = Color::WHITE;
@@ -80,37 +79,18 @@ fn wasm_clean(
 }
 
 fn wasm_run(
-    size: Res<MapSize>,
     mut wasm: ResMut<WasmPathfinding>,
-    tiles_map: Single<&mut TilemapChunkTileData>,
+    map: Res<Map>,
     fox_pos: Single<&MapPos, With<Fox>>,
     flag_pos: Single<&MapPos, With<Flag>>,
     mut mut_state: ResMut<NextState<WasmState>>,
 ) {
-    let chunks: Vec<Vec<_>> = tiles_map
-        .chunks(size.0.x as usize)
-        .map(|c| c.to_vec())
-        .collect();
-
-    let grid = chunks
-        .iter()
-        .map(|row| {
-            row.iter()
-                .map(|tile| tile.unwrap().tileset_index == TileType::Floor.to_index())
-                .collect()
-        })
-        // INVERT Y AXIS
-        // X right Y up -> X right Y down
-        // (Math coordinates -> Programming (array) coordinates)
-        .rev()
-        .collect();
-
     let fox_pos: UVec2 = (**fox_pos).into();
     println!("Fox position: {fox_pos:?}");
     let flag_pos: UVec2 = (**flag_pos).into();
     println!("Flag position: {flag_pos:?}");
 
-    if let Err(err) = wasm.run(grid, fox_pos.into(), flag_pos.into()) {
+    if let Err(err) = wasm.run(map.to_pathfinding_map(), fox_pos.into(), flag_pos.into()) {
         error!("{}", err);
         mut_state.set(WasmState::Error(err.to_string()));
     }
@@ -121,9 +101,8 @@ fn wasm_run(
 const HALF_SIZE: Vec2 = vec2(SPRITE_SIZE as f32 / 2.0, SPRITE_SIZE as f32 / 2.0);
 fn show_wasm_actions(
     mut commands: Commands,
-    size: Res<MapSize>,
     pathfinding: Res<WasmPathfinding>,
-    mut tiles_map: Single<&mut TilemapChunkTileData>,
+    mut map: ResMut<Map>,
     mut gizmo_assets: ResMut<Assets<GizmoAsset>>,
 ) {
     pathfinding
@@ -198,12 +177,8 @@ fn show_wasm_actions(
             } => {
                 let color = Color::srgb_u8(color.0, color.1, color.2);
                 let map_pos = MapPos { x: pos_x, y: pos_y };
-                let tile_index = map_pos.into_tile_index(&size);
 
-                let mut tile = tiles_map[tile_index].unwrap();
-                tile.color = color.lighter(0.01);
-
-                tiles_map[tile_index] = Some(tile);
+                map.get_tile_mut(&map_pos).color = color.lighter(0.01);
             }
         });
 }
