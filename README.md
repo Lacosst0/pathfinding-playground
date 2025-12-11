@@ -38,7 +38,7 @@ Visualizer for pathfinding algorithms powered by WASM. You can use ANY language 
 
 # TODO
 
-✅ Decouple visual representation from actual data (for map)
+✅ Decouple visual representation from actual data (for map) \
 ✅ Hot-reloading
 
 1. Pre-compiled binaries
