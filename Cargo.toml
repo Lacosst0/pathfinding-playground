@@ -1,6 +1,6 @@
 [package]
 name = "pathfinding-playground"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Lacosst0 lacosst0@outlook.com"]
 description = "Visualizer for pathfinding algorithms"
 readme = "README.md"
