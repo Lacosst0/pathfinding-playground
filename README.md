@@ -40,12 +40,12 @@ Visualizer for pathfinding algorithms powered by WASM. You can use ANY language 
 
 ✅ Decouple visual representation from actual data (for map)
 ✅ Hot-reloading
-2. Pre-compiled binaries
-3. More examples
-4. Detect if path is actually valid
-5. See TimelineActions in realtime
-6. Confetti!
-7. load_map in wit
-8. Animate fox
-9. Coins as more goals
 
+1. Pre-compiled binaries
+2. More examples
+3. Detect if path is actually valid
+4. See TimelineActions in realtime
+5. Confetti!
+6. load_map in wit
+7. Animate fox
+8. Coins as more goals
