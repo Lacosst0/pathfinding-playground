@@ -10,7 +10,7 @@ use crate::{
     api::{Pathfinding, TimelineAction, WasmRunner, host},
     goals::{Flag, Fox},
     map::{Map, MapPos},
-    ui::SPRITE_SIZE,
+    SPRITE_SIZE,
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, States)]

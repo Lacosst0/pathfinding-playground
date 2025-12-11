@@ -1,9 +1,9 @@
 use bevy::{prelude::*, sprite::Anchor, ui_widgets::observe};
 
 use crate::{
+    SPRITE_SIZE,
     cursor::CursorState,
     map::{Map, MapPos, MapSize, TileType},
-    ui::SPRITE_SIZE,
 };
 
 // Tag components for goals

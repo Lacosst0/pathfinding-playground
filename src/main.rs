@@ -23,7 +23,6 @@
 //          @@@@@@@@@@@@@@@@
 //         https://gitverse.ru
 
-
 use bevy::{
     prelude::*,
     window::{PresentMode, Window},
@@ -32,9 +31,10 @@ use bevy::{
 use image::imageops::FilterType;
 use winit::window::Icon;
 
-use crate::ui::SPRITE_SIZE;
+pub static SPRITE_SIZE: u32 = 16;
 
 mod api;
+mod components;
 mod cursor;
 mod goals;
 mod map;
@@ -96,11 +96,16 @@ fn main() {
         )
         .add_systems(Startup, startup)
         .add_systems(Update, set_window_icon)
-        .add_plugins(MeshPickingPlugin)
-        .add_plugins(cursor::CursorHandlerPlugin)
-        .add_plugins(map::MapHandlerPlugin)
-        .add_plugins(goals::GoalsHandlerPlugin)
-        .add_plugins(ui::SettingsPlugin)
+        .add_plugins((
+            cursor::CursorHandlerPlugin,
+            components::ComponentsPlugin,
+            ui::SettingsPlugin,
+        ))
+        .add_plugins((
+            MeshPickingPlugin,
+            map::MapHandlerPlugin,
+            goals::GoalsHandlerPlugin,
+        ))
         .add_plugins(wasm::WasmRunnerPlugin)
         .run();
 }

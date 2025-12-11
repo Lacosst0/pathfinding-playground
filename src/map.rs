@@ -3,7 +3,7 @@ use bevy::{
     sprite_render::{TileData, TilemapChunk, TilemapChunkTileData},
 };
 
-use crate::{cursor::CursorState, ui::SPRITE_SIZE};
+use crate::{cursor::CursorState, SPRITE_SIZE};
 
 #[derive(Resource, Debug, Clone)]
 pub struct Map(pub Vec<Vec<TileInfo>>);
