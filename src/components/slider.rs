@@ -83,13 +83,11 @@ pub(super) fn update_slider_style(
         ),
     >,
     children: Query<&Children>,
-    mut thumbs: Query<(&mut Node, &mut BackgroundColor, Has<SliderThumb>)>,
+    mut thumbs: Query<(&mut Node, &mut BackgroundColor), With<SliderThumb>>,
 ) {
     for (slider_ent, value, range, interaction) in slider_q.iter() {
         for child in children.iter_descendants(slider_ent) {
-            if let Ok((mut thumb_node, mut color, is_thumb)) = thumbs.get_mut(child)
-                && is_thumb
-            {
+            if let Ok((mut thumb_node, mut color)) = thumbs.get_mut(child) {
                 thumb_node.left = percent(range.thumb_position(value.0) * 100.0);
                 *color = (match *interaction {
                     Interaction::Pressed => SLIDER_THUMB.lighter(PRESSED),
