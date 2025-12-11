@@ -15,7 +15,7 @@ use crate::{
     components::*,
     goals::Fox,
     map::{Map, MapSize},
-    wasm::{WasmPathfinding, WasmState},
+    wasm::{WasmHotReloading, WasmPathfinding, WasmState},
 };
 
 fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
@@ -90,6 +90,25 @@ fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
                     }
                 )
             ),
+            (
+                Node {
+                    display: Display::Flex,
+                    width: percent(100),
+                    column_gap: px(8),
+                    ..default()
+                },
+                children![
+                    (
+                        checkbox(),
+                        observe(
+                            |event: On<ValueChange<bool>>, mut state: ResMut<WasmHotReloading>| {
+                                state.0 = event.value;
+                            }
+                        ),
+                    ),
+                    text("Hot-reloading", 24.),
+                ],
+            ),
             separator(),
             (text("Map size: 0x0", 32.), MapSizeText),
             (
@@ -103,8 +122,8 @@ fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
                     (
                         slider(2., 128., map_size.0.x as f32),
                         observe(
-                            |value_change: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
-                                map_size.0.x = value_change.value as u32;
+                            |event: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
+                                map_size.0.x = event.value as u32;
                             },
                         ),
                     )
@@ -121,8 +140,8 @@ fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
                     (
                         slider(2., 128., map_size.0.y as f32),
                         observe(
-                            |value_change: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
-                                map_size.0.y = value_change.value as u32;
+                            |event: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
+                                map_size.0.y = event.value as u32;
                             },
                         ),
                     )
