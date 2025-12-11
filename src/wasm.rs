@@ -85,12 +85,14 @@ fn wasm_run(
     flag_pos: Single<&MapPos, With<Flag>>,
     mut mut_state: ResMut<NextState<WasmState>>,
 ) {
-    let fox_pos: UVec2 = (**fox_pos).into();
-    println!("Fox position: {fox_pos:?}");
-    let flag_pos: UVec2 = (**flag_pos).into();
-    println!("Flag position: {flag_pos:?}");
+    println!("Fox position: {:?}", *fox_pos);
+    println!("Flag position: {:?}", *flag_pos);
 
-    if let Err(err) = wasm.run(map.to_pathfinding_map(), fox_pos.into(), flag_pos.into()) {
+    if let Err(err) = wasm.run(
+        map.to_pathfinding_map(),
+        (**fox_pos).into(),
+        (**flag_pos).into(),
+    ) {
         error!("{}", err);
         mut_state.set(WasmState::Error(err.to_string()));
     }
@@ -120,15 +122,15 @@ fn show_wasm_actions(
             } => {
                 let mut gizmo = GizmoAsset::default();
 
-                let t_start: MapPos = start.into();
-                let t_end: MapPos = end.into();
+                let pos_start: MapPos = start.into();
+                let pos_end: MapPos = end.into();
 
-                let t_start: Vec2 = t_start.into();
-                let t_end: Vec2 = t_end.into();
+                let t_start: Transform = pos_start.into();
+                let t_end: Transform = pos_end.into();
 
                 gizmo.line_2d(
-                    t_start + HALF_SIZE,
-                    t_end + HALF_SIZE,
+                    t_start.translation.xy() + HALF_SIZE,
+                    t_end.translation.xy() + HALF_SIZE,
                     Color::srgb_u8(r, g, b),
                 );
 
@@ -148,16 +150,16 @@ fn show_wasm_actions(
             } => {
                 let mut gizmo = GizmoAsset::default();
 
-                let t_start: MapPos = start.into();
-                let t_end: MapPos = end.into();
+                let pos_start: MapPos = start.into();
+                let pos_end: MapPos = end.into();
 
-                let t_start: Vec2 = t_start.into();
-                let t_end: Vec2 = t_end.into();
+                let t_start: Transform = pos_start.into();
+                let t_end: Transform = pos_end.into();
 
                 gizmo
                     .arrow_2d(
-                        t_start + HALF_SIZE,
-                        t_end + HALF_SIZE,
+                        t_start.translation.xy() + HALF_SIZE,
+                        t_end.translation.xy() + HALF_SIZE,
                         Color::srgb_u8(r, g, b),
                     )
                     .with_tip_length(SPRITE_SIZE as f32 / 2.0);
@@ -172,7 +174,7 @@ fn show_wasm_actions(
                 });
             }
             TimelineAction::Tile {
-                pos: UVec2 { x: pos_x, y: pos_y },
+                pos: (pos_x, pos_y),
                 color,
             } => {
                 let color = Color::srgb_u8(color.0, color.1, color.2);
