@@ -3,6 +3,7 @@ use bevy::{prelude::*, ui_widgets::Button};
 use crate::components::{HOVERED, PRESSED};
 
 const BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
+
 pub fn button(text: impl Bundle) -> impl Bundle {
     (
         Node {
