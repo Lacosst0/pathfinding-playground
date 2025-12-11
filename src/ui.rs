@@ -5,7 +5,6 @@ use bevy::{
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     math::Vec2,
     prelude::*,
-    sprite_render::TilemapChunkTileData,
     time::common_conditions::on_timer,
     ui_widgets::{
         Activate, Button, Slider, SliderRange, SliderThumb, SliderValue, UiWidgetsPlugins,
@@ -247,29 +246,6 @@ fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
                                 }
                             }
                         }
-                    }
-                )
-            ),
-            (
-                button(text("Clear map", 24.)),
-                observe(
-                    |_: On<Activate>,
-                     mut commands: Commands,
-                     tiles_map: Single<(Entity, &TilemapChunkTileData)>,
-                     gizmos: Query<Entity, With<Gizmo>>| {
-                        commands.entity(tiles_map.0).insert(TilemapChunkTileData(
-                            tiles_map
-                                .1
-                                .iter()
-                                .map(|tile| {
-                                    let mut tile = tile.unwrap_or_default();
-                                    tile.color = Color::WHITE;
-                                    Some(tile)
-                                })
-                                .collect(),
-                        ));
-
-                        gizmos.iter().for_each(|g| commands.entity(g).despawn());
                     }
                 )
             ),
