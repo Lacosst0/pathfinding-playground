@@ -3,7 +3,7 @@ use bevy::{
     sprite_render::{TileData, TilemapChunk, TilemapChunkTileData},
 };
 
-use crate::{cursor::CursorState, ui::SPRITE_SIZE};
+use crate::{cursor::CursorState, SPRITE_SIZE};
 
 #[derive(Resource, Debug, Clone)]
 pub struct Map(pub Vec<Vec<TileInfo>>);
@@ -118,11 +118,6 @@ pub struct MapPos {
     pub x: u32,
     pub y: u32,
 }
-impl From<MapPos> for Vec2 {
-    fn from(val: MapPos) -> Vec2 {
-        Vec2::new((val.x * SPRITE_SIZE) as f32, (val.y * SPRITE_SIZE) as f32)
-    }
-}
 impl From<MapPos> for Transform {
     fn from(val: MapPos) -> Self {
         Transform::from_xyz(
@@ -140,14 +135,17 @@ impl From<Transform> for MapPos {
         }
     }
 }
-impl From<MapPos> for UVec2 {
-    fn from(val: MapPos) -> Self {
-        UVec2 { x: val.x, y: val.y }
+impl From<(u32, u32)> for MapPos {
+    fn from(value: (u32, u32)) -> Self {
+        MapPos {
+            x: value.0,
+            y: value.1,
+        }
     }
 }
-impl From<UVec2> for MapPos {
-    fn from(val: UVec2) -> Self {
-        MapPos { x: val.x, y: val.y }
+impl From<MapPos> for (u32, u32) {
+    fn from(value: MapPos) -> Self {
+        (value.x, value.y)
     }
 }
 impl MapPos {

@@ -1,4 +1,3 @@
-use bevy::math::UVec2;
 use wasmtime::component::bindgen;
 use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
@@ -9,20 +8,9 @@ bindgen!("pathfinding" in "wit/world.wit");
 
 #[derive(Debug, Clone, Copy)]
 pub enum TimelineAction {
-    Tile {
-        pos: UVec2,
-        color: Color,
-    },
-    Line {
-        start: UVec2,
-        end: UVec2,
-        color: Color,
-    },
-    Arrow {
-        start: UVec2,
-        end: UVec2,
-        color: Color,
-    },
+    Tile { pos: Pos, color: Color },
+    Line { start: Pos, end: Pos, color: Color },
+    Arrow { start: Pos, end: Pos, color: Color },
 }
 
 pub struct WasmRunner {
@@ -55,26 +43,17 @@ impl WasiView for WasmRunner {
 
 impl Host for WasmRunner {
     fn tile(&mut self, pos: Pos, color: Color) {
-        self.timeline.push(TimelineAction::Tile {
-            pos: pos.into(),
-            color,
-        });
+        self.timeline.push(TimelineAction::Tile { pos, color });
     }
 
     fn line(&mut self, start: Pos, end: Pos, color: Color) {
-        self.timeline.push(TimelineAction::Line {
-            start: start.into(),
-            end: end.into(),
-            color,
-        });
+        self.timeline
+            .push(TimelineAction::Line { start, end, color });
     }
 
     fn arrow(&mut self, start: Pos, end: Pos, color: Color) {
-        self.timeline.push(TimelineAction::Arrow {
-            start: start.into(),
-            end: end.into(),
-            color,
-        });
+        self.timeline
+            .push(TimelineAction::Arrow { start, end, color });
     }
 
     fn output(&mut self, path: Vec<(u32, u32)>) -> bool {

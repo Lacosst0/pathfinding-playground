@@ -1,16 +1,21 @@
-use std::{path::PathBuf, sync::Mutex};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::Mutex,
+    time::{Duration, SystemTime},
+};
 
-use bevy::{prelude::*, sprite_render::TilemapChunkTileData};
+use bevy::{prelude::*, sprite_render::TilemapChunkTileData, time::common_conditions::on_timer};
 use wasmtime::{
     Config, Engine, Store,
     component::{Component, HasSelf, Linker},
 };
 
 use crate::{
+    SPRITE_SIZE,
     api::{Pathfinding, TimelineAction, WasmRunner, host},
     goals::{Flag, Fox},
     map::{Map, MapPos},
-    ui::SPRITE_SIZE,
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, States)]
@@ -23,12 +28,15 @@ pub enum WasmState {
 
 #[derive(Resource)]
 pub struct WasmPathfinding {
+    file: PathBuf,
     module: Pathfinding,
     store: Mutex<Store<WasmRunner>>,
 }
 impl WasmPathfinding {
     pub fn load(file: &PathBuf) -> Result<WasmPathfinding, wasmtime::Error> {
         let engine = Engine::new(Config::new().wasm_component_model(true))?;
+
+        info!("Loading {}", file.display());
 
         let component = Component::from_file(&engine, file)?;
         let mut linker = Linker::new(&engine);
@@ -39,6 +47,7 @@ impl WasmPathfinding {
         let mut store = Store::new(component.engine(), data);
         host::add_to_linker::<_, HasSelf<_>>(&mut linker, |data: &mut WasmRunner| data)?;
         Ok(WasmPathfinding {
+            file: file.clone(),
             module: Pathfinding::instantiate(&mut store, &component, &linker)?,
             store: Mutex::new(store),
         })
@@ -85,12 +94,14 @@ fn wasm_run(
     flag_pos: Single<&MapPos, With<Flag>>,
     mut mut_state: ResMut<NextState<WasmState>>,
 ) {
-    let fox_pos: UVec2 = (**fox_pos).into();
-    println!("Fox position: {fox_pos:?}");
-    let flag_pos: UVec2 = (**flag_pos).into();
-    println!("Flag position: {flag_pos:?}");
+    println!("Fox position: {:?}", *fox_pos);
+    println!("Flag position: {:?}", *flag_pos);
 
-    if let Err(err) = wasm.run(map.to_pathfinding_map(), fox_pos.into(), flag_pos.into()) {
+    if let Err(err) = wasm.run(
+        map.to_pathfinding_map(),
+        (**fox_pos).into(),
+        (**flag_pos).into(),
+    ) {
         error!("{}", err);
         mut_state.set(WasmState::Error(err.to_string()));
     }
@@ -99,6 +110,7 @@ fn wasm_run(
 }
 
 const HALF_SIZE: Vec2 = vec2(SPRITE_SIZE as f32 / 2.0, SPRITE_SIZE as f32 / 2.0);
+
 fn show_wasm_actions(
     mut commands: Commands,
     pathfinding: Res<WasmPathfinding>,
@@ -120,15 +132,15 @@ fn show_wasm_actions(
             } => {
                 let mut gizmo = GizmoAsset::default();
 
-                let t_start: MapPos = start.into();
-                let t_end: MapPos = end.into();
+                let pos_start: MapPos = start.into();
+                let pos_end: MapPos = end.into();
 
-                let t_start: Vec2 = t_start.into();
-                let t_end: Vec2 = t_end.into();
+                let t_start: Transform = pos_start.into();
+                let t_end: Transform = pos_end.into();
 
                 gizmo.line_2d(
-                    t_start + HALF_SIZE,
-                    t_end + HALF_SIZE,
+                    t_start.translation.xy() + HALF_SIZE,
+                    t_end.translation.xy() + HALF_SIZE,
                     Color::srgb_u8(r, g, b),
                 );
 
@@ -148,16 +160,16 @@ fn show_wasm_actions(
             } => {
                 let mut gizmo = GizmoAsset::default();
 
-                let t_start: MapPos = start.into();
-                let t_end: MapPos = end.into();
+                let pos_start: MapPos = start.into();
+                let pos_end: MapPos = end.into();
 
-                let t_start: Vec2 = t_start.into();
-                let t_end: Vec2 = t_end.into();
+                let t_start: Transform = pos_start.into();
+                let t_end: Transform = pos_end.into();
 
                 gizmo
                     .arrow_2d(
-                        t_start + HALF_SIZE,
-                        t_end + HALF_SIZE,
+                        t_start.translation.xy() + HALF_SIZE,
+                        t_end.translation.xy() + HALF_SIZE,
                         Color::srgb_u8(r, g, b),
                     )
                     .with_tip_length(SPRITE_SIZE as f32 / 2.0);
@@ -172,7 +184,7 @@ fn show_wasm_actions(
                 });
             }
             TimelineAction::Tile {
-                pos: UVec2 { x: pos_x, y: pos_y },
+                pos: (pos_x, pos_y),
                 color,
             } => {
                 let color = Color::srgb_u8(color.0, color.1, color.2);
@@ -183,12 +195,43 @@ fn show_wasm_actions(
         });
 }
 
+#[derive(Resource, Default)]
+pub struct WasmHotReloading(pub bool);
+
+fn reload_if_modified(
+    mut pathfinding: ResMut<WasmPathfinding>,
+    mut mut_state: ResMut<NextState<WasmState>>,
+) {
+    let metadata = fs::metadata(pathfinding.file.clone()).unwrap();
+    let modified = metadata.modified().unwrap();
+    let age = SystemTime::now().duration_since(modified).unwrap();
+
+    if age < Duration::from_secs(1) {
+        info!("Reloading wasm...");
+        *pathfinding = WasmPathfinding::load(&pathfinding.file).unwrap();
+        mut_state.set(WasmState::Run);
+    }
+}
+
 pub struct WasmRunnerPlugin;
 impl Plugin for WasmRunnerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<WasmState>().add_systems(
-            OnEnter(WasmState::Run),
-            (wasm_clean, wasm_run, show_wasm_actions).chain(),
-        );
+        app.init_state::<WasmState>()
+            .add_systems(
+                OnEnter(WasmState::Run),
+                (wasm_clean, wasm_run, show_wasm_actions).chain(),
+            )
+            .init_resource::<WasmHotReloading>()
+            .add_systems(
+                Update,
+                reload_if_modified
+                    .run_if(
+                        |hot_reloading: Res<WasmHotReloading>,
+                         pathfinding: Option<Res<WasmPathfinding>>| {
+                            hot_reloading.0 && pathfinding.is_some()
+                        },
+                    )
+                    .run_if(on_timer(Duration::from_secs(1))),
+            );
     }
 }

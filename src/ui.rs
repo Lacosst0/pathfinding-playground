@@ -5,179 +5,19 @@ use bevy::{
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     math::Vec2,
     prelude::*,
-    sprite_render::TilemapChunkTileData,
     time::common_conditions::on_timer,
-    ui_widgets::{
-        Activate, Button, Slider, SliderRange, SliderThumb, SliderValue, UiWidgetsPlugins,
-        ValueChange, observe,
-    },
+    ui_widgets::{Activate, UiWidgetsPlugins, ValueChange, observe},
 };
 use rfd::FileDialog;
 
 use crate::{
+    SPRITE_SIZE,
+    components::*,
     goals::Fox,
     map::{Map, MapSize},
-    wasm::{WasmPathfinding, WasmState},
+    wasm::{WasmHotReloading, WasmPathfinding, WasmState},
 };
 
-pub static SPRITE_SIZE: u32 = 16;
-
-const BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
-const SLIDER_TRACK: Color = Color::srgb(0.05, 0.05, 0.05);
-const SLIDER_THUMB: Color = Color::srgb(0.35, 0.75, 0.35);
-
-const HOVERED: f32 = 0.01;
-const PRESSED: f32 = 0.1;
-
-fn text(text: &str, size: f32) -> impl Bundle {
-    (
-        Text::new(text),
-        TextFont {
-            font_size: size,
-            ..default()
-        },
-    )
-}
-
-fn button(text: impl Bundle) -> impl Bundle {
-    (
-        Node {
-            border: Val::all(px(2)),
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            padding: Val::all(px(4.)),
-            ..default()
-        },
-        Button,
-        Interaction::default(),
-        BorderColor::all(Color::BLACK),
-        BorderRadius::all(percent(25.)),
-        BackgroundColor(BUTTON),
-        children![(text, TextColor(Color::srgb(0.9, 0.9, 0.9)),)],
-    )
-}
-
-fn update_button_style(
-    mut interaction_q: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    for (interaction, mut color) in &mut interaction_q {
-        *color = (match *interaction {
-            Interaction::Pressed => BUTTON.lighter(PRESSED),
-            Interaction::Hovered => BUTTON.lighter(HOVERED),
-            Interaction::None => BUTTON,
-        })
-        .into();
-    }
-}
-
-fn slider(min: f32, max: f32, default_value: f32) -> impl Bundle {
-    (
-        Node {
-            display: Display::Flex,
-            align_self: AlignSelf::Center,
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Stretch,
-            justify_items: JustifyItems::Center,
-            height: px(20),
-            width: percent(100),
-            ..default()
-        },
-        Slider::default(),
-        SliderValue(default_value),
-        SliderRange::new(min, max),
-        Interaction::default(),
-        observe(
-            |value_change: On<ValueChange<f32>>, mut commands: Commands| {
-                commands
-                    .entity(value_change.source)
-                    .insert(SliderValue(value_change.value));
-            },
-        ),
-        children![
-            // Slider background rail
-            (
-                Node {
-                    height: px(8),
-                    ..default()
-                },
-                BackgroundColor(SLIDER_TRACK), // Border color for the checkbox
-                BorderRadius::all(px(3)),
-            ),
-            // Invisible track to allow absolute placement of thumb entity. This is narrower than
-            // the actual slider, which allows us to position the thumb entity using simple
-            // percentages, without having to measure the actual width of the slider thumb.
-            (
-                Node {
-                    display: Display::Flex,
-                    position_type: PositionType::Absolute,
-                    left: px(0),
-                    top: px(0),
-                    bottom: px(0),
-                    // Track is short by thumb width to accommodate the thumb.
-                    right: px(20),
-                    ..default()
-                },
-                children![(
-                    SliderThumb,
-                    Node {
-                        display: Display::Flex,
-                        width: px(20),
-                        height: px(20),
-                        position_type: PositionType::Absolute,
-                        left: percent(0), // This will be updated by the slider's value
-                        ..default()
-                    },
-                    BorderRadius::MAX,
-                    BackgroundColor(SLIDER_THUMB),
-                )],
-            ),
-        ],
-    )
-}
-
-fn update_slider_style(
-    slider_q: Query<
-        (Entity, &SliderValue, &SliderRange, &Interaction),
-        (
-            Or<(Changed<Interaction>, Changed<SliderValue>)>,
-            With<Slider>,
-        ),
-    >,
-    children: Query<&Children>,
-    mut thumbs: Query<(&mut Node, &mut BackgroundColor, Has<SliderThumb>)>,
-) {
-    for (slider_ent, value, range, interaction) in slider_q.iter() {
-        for child in children.iter_descendants(slider_ent) {
-            if let Ok((mut thumb_node, mut color, is_thumb)) = thumbs.get_mut(child)
-                && is_thumb
-            {
-                thumb_node.left = percent(range.thumb_position(value.0) * 100.0);
-                *color = (match *interaction {
-                    Interaction::Pressed => SLIDER_THUMB.lighter(PRESSED),
-                    Interaction::Hovered => SLIDER_THUMB.lighter(HOVERED),
-                    Interaction::None => SLIDER_THUMB,
-                })
-                .into();
-            }
-        }
-    }
-}
-
-fn separator() -> impl Bundle {
-    (
-        Node {
-            height: px(2),
-            width: percent(100.),
-            align_self: AlignSelf::Stretch,
-            ..default()
-        },
-        BackgroundColor(Color::srgb(0., 0., 0.)),
-    )
-}
 fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
     commands.spawn((
         Node {
@@ -251,27 +91,23 @@ fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
                 )
             ),
             (
-                button(text("Clear map", 24.)),
-                observe(
-                    |_: On<Activate>,
-                     mut commands: Commands,
-                     tiles_map: Single<(Entity, &TilemapChunkTileData)>,
-                     gizmos: Query<Entity, With<Gizmo>>| {
-                        commands.entity(tiles_map.0).insert(TilemapChunkTileData(
-                            tiles_map
-                                .1
-                                .iter()
-                                .map(|tile| {
-                                    let mut tile = tile.unwrap_or_default();
-                                    tile.color = Color::WHITE;
-                                    Some(tile)
-                                })
-                                .collect(),
-                        ));
-
-                        gizmos.iter().for_each(|g| commands.entity(g).despawn());
-                    }
-                )
+                Node {
+                    display: Display::Flex,
+                    width: percent(100),
+                    column_gap: px(8),
+                    ..default()
+                },
+                children![
+                    (
+                        checkbox(),
+                        observe(
+                            |event: On<ValueChange<bool>>, mut state: ResMut<WasmHotReloading>| {
+                                state.0 = event.value;
+                            }
+                        ),
+                    ),
+                    text("Hot-reloading", 24.),
+                ],
             ),
             separator(),
             (text("Map size: 0x0", 32.), MapSizeText),
@@ -286,8 +122,8 @@ fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
                     (
                         slider(2., 128., map_size.0.x as f32),
                         observe(
-                            |value_change: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
-                                map_size.0.x = value_change.value as u32;
+                            |event: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
+                                map_size.0.x = event.value as u32;
                             },
                         ),
                     )
@@ -304,8 +140,8 @@ fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
                     (
                         slider(2., 128., map_size.0.y as f32),
                         observe(
-                            |value_change: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
-                                map_size.0.y = value_change.value as u32;
+                            |event: On<ValueChange<f32>>, mut map_size: ResMut<MapSize>| {
+                                map_size.0.y = event.value as u32;
                             },
                         ),
                     )
@@ -316,13 +152,10 @@ fn ui_startup(mut commands: Commands, map_size: Res<MapSize>) {
 }
 
 #[derive(Component)]
-struct FPSText;
-
-#[derive(Component)]
 struct SelectAlgorithmText;
 
 #[derive(Component)]
-struct MapSizeText;
+struct FPSText;
 
 fn fps_text_update(
     diagnostics: Res<DiagnosticsStore>,
@@ -335,13 +168,11 @@ fn fps_text_update(
     }
 }
 
-fn map_size_text_update(
-    map_size: Res<MapSize>,
-    mut map_size_text: Single<&mut Text, With<MapSizeText>>,
-) {
-    if map_size.is_changed() {
-        map_size_text.0 = format!("Map Size: {}x{}", map_size.0.x, map_size.0.y);
-    }
+#[derive(Component)]
+struct MapSizeText;
+
+fn map_size_text_update(size: Res<MapSize>, mut size_text: Single<&mut Text, With<MapSizeText>>) {
+    size_text.0 = format!("Map Size: {}x{}", size.0.x, size.0.y);
 }
 
 pub struct SettingsPlugin;
@@ -355,8 +186,9 @@ impl Plugin for SettingsPlugin {
                 Update,
                 fps_text_update.run_if(on_timer(Duration::from_secs_f32(0.5))),
             )
-            .add_systems(Update, map_size_text_update)
-            .add_systems(Update, update_button_style)
-            .add_systems(Update, update_slider_style);
+            .add_systems(
+                Update,
+                map_size_text_update.run_if(|size: Res<MapSize>| size.is_changed()),
+            );
     }
 }
