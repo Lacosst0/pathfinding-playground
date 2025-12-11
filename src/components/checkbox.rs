@@ -27,24 +27,26 @@ pub fn checkbox() -> impl Bundle {
 }
 
 pub(super) fn update_checkbox_style(
-    checkbox_q: Query<(Entity, &Interaction, Has<Checked>), With<Checkbox>>,
-    mut borders: Query<&mut BorderColor>,
-    mut marks: Query<&mut BackgroundColor>,
+    mut checkbox_q: Query<
+        (
+            &Interaction,
+            &mut BorderColor,
+            Has<Checked>,
+            &mut BackgroundColor,
+        ),
+        With<Checkbox>,
+    >,
 ) {
-    for (entity, interaction, checked) in checkbox_q.iter() {
-        if let Ok(mut border_color) = borders.get_mut(entity) {
-            border_color.set_all(match *interaction {
-                Interaction::Pressed => CHECKBOX_OUTLINE.lighter(PRESSED),
-                Interaction::Hovered => CHECKBOX_OUTLINE.lighter(HOVERED),
-                Interaction::None => CHECKBOX_OUTLINE,
-            });
-        }
+    for (interaction, mut border_color, checked, mut background_color) in checkbox_q.iter_mut() {
+        border_color.set_all(match *interaction {
+            Interaction::Pressed => CHECKBOX_OUTLINE.lighter(PRESSED),
+            Interaction::Hovered => CHECKBOX_OUTLINE.lighter(HOVERED),
+            Interaction::None => CHECKBOX_OUTLINE,
+        });
 
-        if let Ok(mut background_color) = marks.get_mut(entity) {
-            *background_color = BackgroundColor(match checked {
-                true => CHECKBOX_CHECK,
-                false => Srgba::NONE.into(),
-            });
-        }
+        *background_color = BackgroundColor(match checked {
+            true => CHECKBOX_CHECK,
+            false => Srgba::NONE.into(),
+        });
     }
 }
